@@ -1,0 +1,10 @@
+streamlit>=1.20
+sentence-transformers>=2.2.2
+faiss-cpu>=1.7.4
+scikit-learn
+numpy
+matplotlib
+pypdf>=3.0.0
+networkx
+transformers>=4.30.0
+torch>=1.13; platform_system != "Windows"
