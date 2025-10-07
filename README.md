@@ -1,14 +1,14 @@
 ---
-title: Streamlit Template Space
+title: OfflineRAG X
 emoji: 🚀
 colorFrom: red
 colorTo: red
 sdk: docker
 app_port: 8501
 tags:
-  - streamlit
+- streamlit
 pinned: false
-short_description: Streamlit template space
+short_description: A privacy focused Retrieval-Augmented Summarization System
 ---
 
 # Welcome to Streamlit!
