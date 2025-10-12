@@ -174,9 +174,9 @@ class AdvancedRAG:
                 highlighted.append({"source": h["source"], "best_sentence": h["chunk"][:200], "score": 0.0})
         return {"answer": answer, "evidence": hits, "highlights": highlighted}
 
-    # ---------------------
+    
     # Persistence: save/load index and metadata
-    # ---------------------
+    
     def save_index(self, path: str):
         os.makedirs(path, exist_ok=True)
         if self.index is None or self.embeddings is None:
@@ -211,9 +211,9 @@ class AdvancedRAG:
             zf.extractall(tmpdir)
         self.load_index(tmpdir)
 
-    # ---------------------
+    
     # Knowledge graph: doc-to-doc similarity graph
-    # ---------------------
+    
     def build_doc_graph(self, similarity_threshold: float = 0.7) -> nx.Graph:
         file_chunks = {}
         for (src, _), chunk in zip(self.metadatas, self.chunks):
@@ -243,9 +243,9 @@ class AdvancedRAG:
         fig = plt.gcf()
         return fig
 
-    # ---------------------
+    
     # Optional local summarizer (seq2seq) for abstractive rewriting
-    # ---------------------
+    
     def init_local_summarizer(self, model_id: Optional[str] = None, device: int = -1):
         if not TRANSFORMERS_AVAILABLE:
             raise RuntimeError("transformers not available in this environment.")
