@@ -1,4 +1,4 @@
-# 🧠 Advanced Offline RAG — Privacy-First Knowledge Summarizer
+# Advanced Offline RAG — Privacy-First Knowledge Summarizer
 
 An advanced **Retrieval-Augmented Generation (RAG)** system designed for **offline, privacy-first document intelligence**.  
 It integrates local embeddings, FAISS-based retrieval, extractive + abstractive summarization, and document-level knowledge-graph visualization.
