@@ -1,4 +1,3 @@
-# streamlit_app.py
 import streamlit as st
 import os
 import tempfile
@@ -16,7 +15,7 @@ if "rag" not in st.session_state:
 if "uploaded_paths" not in st.session_state:
     st.session_state.uploaded_paths = []
 
-# Sidebar: ingestion + settings
+# Sidebar... ingestion + settings
 with st.sidebar:
     st.header("Indexing & Settings")
     st.markdown("Upload TXT or PDF files. Indexing rebuilds the index from uploaded files.")
@@ -30,7 +29,11 @@ with st.sidebar:
     enable_export = st.checkbox("Enable index export/import (.zip)", value=False)
     enable_kg = st.checkbox("Enable knowledge-graph view", value=False)
     enable_local_summarizer_ui = st.checkbox("Enable local LLM summarizer (optional)", value=False)
-    local_summarizer_model = st.text_input("Local summarizer model id (optional)", value="sshleifer/distilbart-cnn-12-6" if enable_local_summarizer_ui else "")
+    default_model_id = "sshleifer/distilbart-cnn-12-6" if enable_local_summarizer_ui else ""
+    local_summarizer_model = st.text_input("Local summarizer model id (optional)", value=default_model_id)
+    if local_summarizer_model:
+        st.session_state['local_summarizer_model'] = local_summarizer_model
+
     if st.button("Build Index"):
         if not uploaded:
             st.warning("Upload at least one file before building index.")
@@ -58,6 +61,7 @@ with st.sidebar:
             st.success(f"Saved to {path}")
         except Exception as e:
             st.error(f"Save failed: {e}")
+
     if enable_export and st.session_state.rag.index is not None and st.button("Export Index (.zip)"):
         try:
             outzip = "/tmp/rag_index.zip"
@@ -69,17 +73,19 @@ with st.sidebar:
             st.markdown(href, unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Export failed: {e}")
-    if enable_export and st.file_uploader("Or import index (.zip)", type=["zip"]):
-        z = st.file_uploader("Upload index zip", type=["zip"])
-        if z:
-            tmpf = os.path.join(tempfile.mkdtemp(), z.name)
+
+    if enable_export:
+        import_file = st.file_uploader("Or import index (.zip)", type=["zip"])
+        if import_file is not None:
+            tmpf = os.path.join(tempfile.mkdtemp(), import_file.name)
             with open(tmpf, "wb") as out:
-                out.write(z.getbuffer())
+                out.write(import_file.getbuffer())
             try:
                 st.session_state.rag.import_index_zip(tmpf)
                 st.success("Index imported from zip.")
             except Exception as e:
                 st.error(f"Import failed: {e}")
+
 
     st.markdown("---")
     st.write("Index status:")
@@ -116,11 +122,18 @@ if mode == "Summarize All":
         summary_ratio = ratio_map[detail_option]
         use_llm = st.checkbox("Use LLM abstractive summarizer (optional)", value=False)
         llm_max = st.slider("LLM max summary tokens (approx words)", 60, 400, 200)
-        for fname, chunk_list in ((lambda m,c: list({}.items())) if False else []):
-            pass
+        
         files_map = {}
-        for (src, _), chunk in zip(st.session_state.rag.metadatas, st.session_state.rag.chunks):
+        n_meta = len(st.session_state.rag.metadatas)
+        n_chunks = len(st.session_state.rag.chunks)
+        n = min(n_meta, n_chunks)
+        for i in range(n):
+            src, _ = st.session_state.rag.metadatas[i]
+            chunk = st.session_state.rag.chunks[i]
             files_map.setdefault(src, []).append(chunk)
+        if n_meta != n_chunks:
+            st.warning(f"Metadata/chunk length mismatch: {n_meta} != {n_chunks}")
+
         for fname, chunk_list in files_map.items():
             combined = " ".join(chunk_list)
             st.markdown(f"### {fname}")
@@ -146,7 +159,9 @@ elif mode == "Question Answering":
     st.subheader("Ask a question")
     question = st.text_input("Enter question")
     k = st.slider("How many retrieved chunks (k)", 1, 8, 4)
-    # Provide same clear detail options for QA answer summarization
+    
+    # provide clear options for QA answer summarization
+    
     qa_detail = st.selectbox("Answer detail level", ["Short (25%)", "Medium (40%)", "Detailed (60%)"], index=0)
     ratio_map = {"Short (25%)":0.25, "Medium (40%)":0.40, "Detailed (60%)":0.60}
     summary_ratio = ratio_map[qa_detail]
@@ -167,8 +182,9 @@ elif mode == "Question Answering":
                 st.markdown("#### Evidence (retrieved chunks)")
                 scores = [h["score"] for h in out["evidence"]]
                 fig, ax = plt.subplots()
-                ax.barh(range(len(scores))[::-1], scores[::-1])
-                ax.set_yticks(range(len(scores)))
+                y_pos = list(range(len(scores)))[::-1]
+                ax.barh(y_pos, scores[::-1])
+                ax.set_yticks(y_pos)
                 ax.set_yticklabels([f"{h['source']}" for h in out["evidence"]][::-1])
                 ax.set_xlabel("Similarity score")
                 st.pyplot(fig)
@@ -209,15 +225,23 @@ else:  # Explore Index
             st.error(f"Graph build failed: {e}")
         st.markdown("---")
         st.markdown("### Index contents (first 20 chunks)")
-        for i, (m, chunk) in enumerate(zip(st.session_state.rag.metadatas[:20], st.session_state.rag.chunks[:20])):
+        n_meta = len(st.session_state.rag.metadatas)
+        n_chunks = len(st.session_state.rag.chunks)
+        n_preview = min(n_meta, n_chunks, 20)
+        for i in range(n_preview):
+            m = st.session_state.rag.metadatas[i]
+            chunk = st.session_state.rag.chunks[i]
             st.markdown(f"**{i+1}. File:** {m[0]} — excerpt: {m[1]}")
             with st.expander("Show chunk"):
                 st.write(chunk[:1500])
+        if n_meta != n_chunks:
+            st.warning(f"Metadata/chunk length mismatch: {n_meta} != {n_chunks}")
+
 
 st.markdown("---")
 st.caption("Advanced Offline RAG — LLM summarizer optional. Initialize summarizer only if you have enough RAM.")
 
-# Initialize local summarizer button in sidebar area (outside context)
+# initialize local summarizer button in sidebar area 
 with st.sidebar:
     if st.checkbox("Initialize local summarizer now (download model)", value=False):
         model_id_env = os.getenv("LOCAL_SUMMARIZER_MODEL")
