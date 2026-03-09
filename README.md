@@ -11,7 +11,18 @@ It integrates local embeddings, FAISS-based retrieval, extractive + abstractive 
 ## Research Summary
 
 This project implements a complete **offline Retrieval-Augmented Generation pipeline**.  
-It combines semantic embeddings (Sentence-Transformers), vector search (FAISS), and hybrid summarization (extractive + transformer-based abstractive) to perform context-aware retrieval and reasoning over unstructured text.  
+It combines semantic embeddings (Sentence-Transformers), vector search (FAISS), and hybrid summarization (extractive + transformer-based abstractive) to perform context-aware retrieval and reasoning over unstructured text.
+
+It allows users to upload research papers (PDF/TXT) and perform:
+
+- semantic question answering
+- document summarization
+- research topic analysis
+- knowledge graph exploration
+- hypothesis generation
+
+The system combines **hybrid retrieval (BM25 + vector search)** with
+semantic clustering to help explore large document collections.
 
 ---
 ## New Features
