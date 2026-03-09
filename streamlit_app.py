@@ -102,7 +102,9 @@ with st.sidebar:
 
 # Main UI
 st.header("Modes")
-mode = st.radio("Choose mode", ["Question Answering", "Summarize All", "Explore Index"])
+mode = st.radio(
+    "Choose mode",
+    ["Question Answering", "Summarize All", "Explore Index", "Research Mode"])
 
 if mode == "Summarize All":
     st.subheader("Document Summaries")
@@ -207,7 +209,7 @@ elif mode == "Question Answering":
                         except Exception as e:
                             st.error(f"LLM rewrite failed: {e}")
 
-else:  # Explore Index
+elif mode == "Explore Index":
     st.subheader("Index Explorer")
     if not st.session_state.rag.chunks:
         st.info("No index.")
@@ -237,6 +239,33 @@ else:  # Explore Index
         if n_meta != n_chunks:
             st.warning(f"Metadata/chunk length mismatch: {n_meta} != {n_chunks}")
 
+elif mode == "Research Mode":
+
+    st.subheader("Research Analysis")
+
+    if not st.session_state.rag.chunks:
+        st.info("Upload documents and build index first.")
+    else:
+
+        if st.button("Analyze Research Corpus"):
+            analysis = st.session_state.rag.analyze_research_corpus()
+
+            st.markdown("### Main Themes")
+            for t in analysis["themes"]:
+                st.write("-", t)
+
+            st.markdown("### Potential Research Gaps")
+            for g in analysis["gaps"]:
+                st.write("-", g)
+
+        st.markdown("---")
+
+        if st.button("Generate Research Hypotheses"):
+            ideas = st.session_state.rag.generate_research_hypotheses()
+
+            st.markdown("### Suggested Research Ideas")
+            for idea in ideas:
+                st.write("-", idea)
 
 st.markdown("---")
 st.caption("Advanced Offline RAG — LLM summarizer optional. Initialize summarizer only if you have enough RAM.")
