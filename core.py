@@ -9,6 +9,8 @@ import faiss
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import KMeans
+from rank_bm25 import BM25Okapi
 from pypdf import PdfReader
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -80,6 +82,8 @@ class AdvancedRAG:
         self.chunks: List[str] = []
         self.metadatas: List[Tuple[str, str]] = []  
         self.embeddings: Optional[np.ndarray] = None
+        self.bm25 = None
+        self.tokenized_chunks = []
         # summarizer optional 
         self.summarizer = None
         self.summarizer_model_id = None
@@ -139,7 +143,10 @@ class AdvancedRAG:
             raise ValueError("Failed to build FAISS index: no embeddings were generated.")
         if len(chunks) != len(metadatas):
             raise ValueError("Internal error: chunk–metadata mismatch")
-
+            
+        # build BM25 index
+        self.tokenized_chunks = [c.lower().split() for c in chunks if c.strip()]
+        self.bm25 = BM25Okapi(self.tokenized_chunks)
         self.index = idx
         self.embeddings = np.vstack(embeddings_list).astype(np.float32)
         self.chunks = chunks
@@ -169,8 +176,26 @@ class AdvancedRAG:
             
         n = len(self.chunks)
         k = max(1, min(k, n))
+        
+        #Sparse retrieval 
+        sparse_results = []
+
+        if self.bm25 is not None:
+            tokens = query.lower().split()
+            scores = self.bm25.get_scores(tokens)
+
+            top_idx = np.argsort(scores)[-k:]
+
+            for i in top_idx:
+                sparse_results.append({
+                    "score": float(scores[i]) * 0.1,
+                    "chunk": self.chunks[i],
+                    "source": self.metadatas[i][0],
+                    "excerpt": self.metadatas[i][1]
+                })
 
         q_emb = self._embed([query])
+        
         # ensures q_emb is a 2D, float32, contiguous array suitable for faiss.index.search
         q_emb = np.asarray(q_emb, dtype=np.float32)
         if q_emb.ndim == 1:
@@ -198,9 +223,12 @@ class AdvancedRAG:
                 "excerpt": self.metadatas[idx][1]
             })
 
-        return results
+        merged = {r["chunk"]: r for r in results + sparse_results}.values()
+        merged = list(merged)
+        
+        merged = sorted(merged, key=lambda x: x["score"], reverse=True)
 
-
+        return merged[:k]
 
     def summarize_text(self, text: str, summary_ratio: float = 0.25) -> str:
         
@@ -570,3 +598,78 @@ class AdvancedRAG:
         except Exception as e:
             # fallback to extractive if summarizer fails
             return text[:max_length]
+
+    def analyze_research_corpus(self):
+
+        if not self.chunks or self.embeddings is None:
+            return {"themes": [], "gaps": [], "clusters": []}
+
+        embeddings = self.embeddings
+
+        # number of topic clusters
+        n_clusters = min(5, max(2, len(self.chunks) // 20))
+
+        try:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            labels = kmeans.fit_predict(embeddings)
+        except Exception:
+            return {"themes": [], "gaps": [], "clusters": []}
+
+        clusters = {}
+        for i, label in enumerate(labels):
+            clusters.setdefault(label, []).append(self.chunks[i])
+
+        themes = []
+        cluster_sizes = {}
+
+        for cid, texts in clusters.items():
+
+            combined = " ".join(texts[:10])
+
+            keywords = self.extract_keywords(combined, top_k=3)
+
+            theme = " / ".join(keywords) if keywords else f"Topic {cid}"
+
+            themes.append(theme)
+
+            cluster_sizes[theme] = len(texts)
+
+        # detect gaps
+        gaps = []
+
+        avg_size = sum(cluster_sizes.values()) / len(cluster_sizes)
+
+        for theme, size in cluster_sizes.items():
+            if size < avg_size * 0.5:
+                gaps.append(
+                    f"'{theme}' has few documents ({size}) compared to others — possible research gap.")
+
+        return {
+            "themes": themes,
+            "gaps": gaps,
+            "clusters": cluster_sizes}
+
+    def generate_research_hypotheses(self):
+
+        analysis = self.analyze_research_corpus()
+
+        ideas = []
+
+        for theme in analysis["themes"]:
+
+            ideas.append(
+            f"Investigate deeper relationships within the topic cluster '{theme}'.")
+
+        for gap in analysis["gaps"]:
+
+            ideas.append(
+                f"Potential research opportunity: {gap}" )
+
+        # cross-theme ideas
+        if len(analysis["themes"]) >= 2:
+            themes = analysis["themes"]
+            for i in range(min(2, len(themes)-1)):
+                ideas.append(
+                    f"Explore interactions between '{themes[i]}' and '{themes[i+1]}' as a possible interdisciplinary direction.")
+
+        return ideas
