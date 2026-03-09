@@ -8,3 +8,4 @@ pypdf>=3.0.0
 networkx
 transformers>=4.30.0
 torch>=1.13; platform_system != "Windows"
+rank-bm25>=0.2.2
