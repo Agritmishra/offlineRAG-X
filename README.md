@@ -14,17 +14,33 @@ This project implements a complete **offline Retrieval-Augmented Generation pipe
 It combines semantic embeddings (Sentence-Transformers), vector search (FAISS), and hybrid summarization (extractive + transformer-based abstractive) to perform context-aware retrieval and reasoning over unstructured text.  
 
 ---
+## New Features
 
-## Overview
+- **Hybrid Retrieval (Dense + Sparse)**  
+  Combines FAISS vector similarity search with BM25 keyword search to improve retrieval accuracy.
 
-The system builds a **local vector database of documents**, enabling question answering, summarization, and graph-based exploration — **without any cloud dependency**.  
+- **Duplicate Result Filtering**  
+  Automatically removes duplicate chunks when merging dense and sparse retrieval results.
 
-Ideal for:
-- Research institutions requiring private data handling  
-- Academic paper summarization & literature review  
-- Demonstrations of applied AI reasoning without APIs  
+- **Semantic Topic Clustering**  
+  Uses **KMeans clustering on document embeddings** to group related research topics automatically.
 
----
+- **Research Theme Detection**  
+  Extracts dominant research themes from clustered document groups using TF-IDF keyword extraction.
+
+- **Research Gap Detection**  
+  Identifies underrepresented topic clusters (clusters significantly smaller than others) as potential research gaps.
+
+- **Automated Hypothesis Generation**  
+  Generates research ideas by analyzing detected themes, gaps, and cross-topic relationships.
+
+- **Research Analysis Mode (UI)**  
+  A dedicated Streamlit mode that allows users to:
+  - analyze corpus themes
+  - detect research gaps
+  - generate research hypotheses interactively.
+
+  ---
 
 ## ✨ Key Features
 
